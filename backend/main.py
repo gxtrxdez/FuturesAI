@@ -21,6 +21,7 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 class PromptRequest(BaseModel):
     prompt: str
+    system: str = ""
 
 @app.get("/")
 def read_root():
@@ -31,6 +32,18 @@ def ask_ai(request: PromptRequest):
     message = client.messages.create(
         model="claude-opus-4-6",
         max_tokens=1024,
+        messages=[
+            {"role": "user", "content": request.prompt}
+        ]
+    )
+    return {"response": message.content[0].text}
+
+@app.post("/ask-concept")
+def ask_concept(request: PromptRequest):
+    message = client.messages.create(
+        model="claude-opus-4-6",
+        max_tokens=1024,
+        system=request.system if request.system else "You are an expert ICT and SMC futures trading mentor specialising in NQ and ES futures.",
         messages=[
             {"role": "user", "content": request.prompt}
         ]
