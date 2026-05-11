@@ -233,3 +233,31 @@ def ask_strategy(request: PromptRequest):
         messages=messages
     )
     return {"response": message.content[0].text}
+
+@app.post("/ask-powell")
+def ask_powell(request: PromptRequest):
+    message = client.messages.create(
+        model="claude-opus-4-6",
+        max_tokens=1024,
+        system="""You are an expert NQ/ES futures trading mentor with deep knowledge of Powell's trading model and ICT concepts.
+
+When asked about Powell's latest views, commentary, or market analysis — search the web for his most recent public posts, tweets, or commentary and summarise the key points in the context of NQ/ES futures trading.
+
+Always:
+- Search for Powell's latest public content first
+- Summarise what he has said in plain English
+- Explain how it relates to the current NQ/ES market context
+- Connect it to ICT concepts where relevant (liquidity, bias, key levels)
+- Be specific and actionable for a beginner NQ trader
+
+If you cannot find recent Powell content, explain the core principles of his model instead and note that you could not find recent public commentary.""",
+        tools=[{"type": "web_search_20250305", "name": "web_search"}],
+        messages=[{"role": "user", "content": request.prompt}]
+    )
+
+    full_response = ""
+    for block in message.content:
+        if hasattr(block, "text"):
+            full_response += block.text
+
+    return {"response": full_response if full_response else "Unable to retrieve Powell content at this time. Please try again."}
