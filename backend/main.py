@@ -1,10 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import anthropic
+import stripe
+import json
 import os
 from dotenv import load_dotenv
 from typing import List, Optional
+from supabase import create_client
 
 load_dotenv()
 
@@ -19,6 +22,14 @@ app.add_middleware(
 )
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+supabase_admin = create_client(
+    os.getenv("SUPABASE_URL"),
+    os.getenv("SUPABASE_SERVICE_KEY")
+)
 
 STRATEGY_SYSTEM_PROMPT = """You are an expert ICT and Powell model trading mentor reviewing strategies and setups submitted by beginner NQ/ES futures traders. You have years of real trading experience and you give honest, structured, actionable feedback.
 
@@ -209,9 +220,81 @@ class PromptRequest(BaseModel):
     system: str = ""
     history: Optional[List[Message]] = []
 
+class CheckoutRequest(BaseModel):
+    user_id: str
+    email: str
+
 @app.get("/")
 def read_root():
     return {"message": "FuturesAI backend is running"}
+
+@app.post("/create-checkout-session")
+def create_checkout_session(request: CheckoutRequest):
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price": STRIPE_PRICE_ID,
+                "quantity": 1,
+            }],
+            mode="subscription",
+            success_url="http://localhost:3000?upgrade=success",
+            cancel_url="http://localhost:3000?upgrade=cancelled",
+            customer_email=request.email,
+            metadata={"user_id": request.user_id}
+        )
+        return {"url": session.url}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        if STRIPE_WEBHOOK_SECRET:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, STRIPE_WEBHOOK_SECRET
+            )
+        else:
+            event = json.loads(payload)
+    except Exception as e:
+        return {"error": str(e)}
+
+    # Parse event data as plain dict from raw payload
+    event_dict = json.loads(payload)
+
+    if event["type"] == "checkout.session.completed":
+        try:
+            session = event_dict["data"]["object"]
+            user_id = session.get("metadata", {}).get("user_id")
+            customer_id = session.get("customer")
+            subscription_id = session.get("subscription")
+
+            if user_id:
+                supabase_admin.table("profiles").update({
+                    "is_pro": True,
+                    "stripe_customer_id": customer_id,
+                    "stripe_subscription_id": subscription_id
+                }).eq("id", user_id).execute()
+                print(f"✅ User {user_id} upgraded to Pro")
+        except Exception as e:
+            print(f"❌ Error updating profile: {e}")
+
+    if event["type"] in ["customer.subscription.deleted", "customer.subscription.paused"]:
+        try:
+            subscription = event_dict["data"]["object"]
+            customer_id = subscription.get("customer")
+            supabase_admin.table("profiles").update({
+                "is_pro": False,
+                "stripe_subscription_id": None
+            }).eq("stripe_customer_id", customer_id).execute()
+            print(f"✅ Customer {customer_id} downgraded to Free")
+        except Exception as e:
+            print(f"❌ Error downgrading profile: {e}")
+
+    return {"status": "ok"}
 
 @app.post("/ask-ai")
 def ask_ai(request: PromptRequest):
