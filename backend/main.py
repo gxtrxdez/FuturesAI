@@ -261,9 +261,31 @@ class CheckoutRequest(BaseModel):
     user_id: str
     email: str
 
+class DeleteAccountRequest(BaseModel):
+    user_id: str
+
 @app.get("/")
 def read_root():
     return {"message": "FuturesAI backend is running"}
+
+@app.post("/delete-account")
+def delete_account(request: DeleteAccountRequest):
+    try:
+        # Delete all user data from all tables
+        supabase_admin.table("profiles").delete().eq("id", request.user_id).execute()
+        supabase_admin.table("journal_evaluations").delete().eq("user_id", request.user_id).execute()
+        supabase_admin.table("journal_funded").delete().eq("user_id", request.user_id).execute()
+        supabase_admin.table("journal_backtesting").delete().eq("user_id", request.user_id).execute()
+        supabase_admin.table("journal_reflections").delete().eq("user_id", request.user_id).execute()
+
+        # Delete the auth user completely
+        supabase_admin.auth.admin.delete_user(request.user_id)
+
+        print(f"✅ User {request.user_id} deleted successfully")
+        return {"success": True}
+    except Exception as e:
+        print(f"❌ Error deleting user {request.user_id}: {e}")
+        return {"error": str(e)}
 
 @app.post("/create-checkout-session")
 def create_checkout_session(request: CheckoutRequest):
