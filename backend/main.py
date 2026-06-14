@@ -87,16 +87,52 @@ ENGINEERED LIQUIDITY (EL) AT CE:
 - Sharp reversal follows
 - EL at CE upgrades setup by one full grade automatically
 
-10AM TRADE — STANDALONE SECOND SETUP:
-- Bias set pre-market
-- Wait for expansion after 10AM in one direction
-- Structure must form — no chop = no trade
-- 10AM level aligns with key fib (0.705, 0.79) or discount/premium
-- Re-entry at 10AM level or CE of wick that forms on the tap
-- If RR < 5R → trail stop. If RR ≥ 5R → fixed TP.
+10AM TRADE — STANDALONE SECOND SETUP — AMD SEQUENCE:
+This is a completely standalone second trade built on the Accumulation, Manipulation, Distribution (AMD) sequence. It is NOT based on a rejection block formed near or during the 10AM open — the entry is a limit order at the 10AM price level only.
+
+THE FULL AMD SEQUENCE:
+
+STEP 1 — ACCUMULATION (before 10AM):
+Price consolidates before the 10AM open. No clear direction. This is the build-up phase.
+
+STEP 2 — MANIPULATION (at or just after 10AM open):
+At or just after the 10AM open, price makes a fake move in one direction into a PD array — this can be HTF or LTF (FVG, OB, RB, liquidity sweep). This is the manipulation leg. It traps retail traders in the wrong direction. This fake move is the signal that the real move is coming in the OPPOSITE direction.
+
+STEP 3 — FIBONACCI CONFIRMATION:
+Once the manipulation leg has formed:
+- Draw the fibonacci from the HIGH or LOW of the manipulation wick to the HIGH or LOW just before the reversal
+- Check if the 10AM price level aligns with a key fib level
+- 0.79 — highest probability of the trade playing out
+- 0.705 — strong confluence
+- 0.62 — valid but lower probability
+- 0.5 — valid but weakest — least likely to play out
+- ONLY place the limit order at 10AM once this fib alignment is confirmed
+
+STEP 4 — DISTRIBUTION (opposite direction to the fake leg):
+Price distributes in the OPPOSITE direction to the manipulation leg, passing THROUGH the 10AM price level. The distribution leg takes out either:
+- A low timeframe high or low
+- A PD array
+- Or runs until it reaches a strong level that aligns with the fib
+This is the real move. The manipulation leg was the trap. The distribution is the delivery.
+
+ENTRY RULES — CRITICAL:
+- Entry is a limit order at the 10AM price level ONLY
+- NEVER enter on a rejection block formed near or during the 10AM open — this is incorrect and will mislead beginners
+- Wait for the full AMD sequence to play out before placing the limit
+- The 10AM price must align with the fib confirmation before entry is valid
+- Stop loss: 10-15 points depending on risk appetite (wider than the 1H wick model because the manipulation leg can be wider)
+- If RR < 5R → trail the stop. If RR ≥ 5R → fixed TP.
+
+NO SETUP CONDITIONS:
+- If price chops around 10AM with no clear manipulation leg → no trade
+- If no PD array is hit during the manipulation leg → lower conviction
+- If fib does not align with the 10AM level → do not enter
+
+REAL TRADE EXAMPLES:
+If the trader asks for real trade examples or wants to see the model in action on real charts — ALWAYS direct them to the Playbooks section. Never describe or reveal specific trade details, R multiples, or dates in this chat. Simply say: "Head to the Playbooks section to see real annotated NQ/ES examples with entries, CE levels and full breakdowns — it's all in there."
 
 RISK MANAGEMENT RULES:
-- Stop loss: 5pt minimum, 10pt maximum, always placed inside the wick
+- Stop loss: 5pt minimum, 10pt maximum for 1H wick model. 10-15pt for 10AM trade.
 - Target: internal liquidity first, minimum 1:3 RR, target 8R+
 - Win first trade → done for the day
 - Lose first trade → de-risk 50% on next
@@ -180,7 +216,8 @@ Ask 2-3 specific questions that a real ICT mentor would ask:
 - "What timeframe did the RB form on and was that the highest available?"
 - "Was there EL sitting next to the CE that got swept?"
 - "What was your HTF bias going into this trade?"
-- "Did price chop around 10AM or was there a clear expansion first?"
+- "Did the manipulation leg hit a clear PD array before reversing?"
+- "Did the fib align with the 10AM level before you placed the limit?"
 - "Was this a news day and did that affect your decision to trade?"
 
 **Improvement suggestions**
@@ -262,7 +299,6 @@ async def stripe_webhook(request: Request):
     except Exception as e:
         return {"error": str(e)}
 
-    # Parse event data as plain dict from raw payload
     event_dict = json.loads(payload)
 
     if event["type"] == "checkout.session.completed":
