@@ -15,7 +15,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://futures-frontend.vercel.app",
+        "https://*.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -237,7 +241,7 @@ CONVERSATION BEHAVIOUR:
 - Never tell the trader to go practice on their own charts or use external tools
 - NEVER say "take the trade", "enter now", "you should enter", or any directive to execute
 - Always frame grade feedback as "the setup meets the criteria" not "you should trade this"
-- At the end of every FIRST response only — add: "📖 Head to the **Playbooks** section for real annotated NQ/ES examples showing these concepts in live market conditions."
+- At the end of every FIRST response only — add: "Head to the Playbooks section for real annotated NQ/ES examples showing these concepts in live market conditions."
 - Never repeat the playbook suggestion after the first response
 
 TONE:
@@ -271,20 +275,16 @@ def read_root():
 @app.post("/delete-account")
 def delete_account(request: DeleteAccountRequest):
     try:
-        # Delete all user data from all tables
         supabase_admin.table("profiles").delete().eq("id", request.user_id).execute()
         supabase_admin.table("journal_evaluations").delete().eq("user_id", request.user_id).execute()
         supabase_admin.table("journal_funded").delete().eq("user_id", request.user_id).execute()
         supabase_admin.table("journal_backtesting").delete().eq("user_id", request.user_id).execute()
         supabase_admin.table("journal_reflections").delete().eq("user_id", request.user_id).execute()
-
-        # Delete the auth user completely
         supabase_admin.auth.admin.delete_user(request.user_id)
-
-        print(f"✅ User {request.user_id} deleted successfully")
+        print(f"User {request.user_id} deleted successfully")
         return {"success": True}
     except Exception as e:
-        print(f"❌ Error deleting user {request.user_id}: {e}")
+        print(f"Error deleting user {request.user_id}: {e}")
         return {"error": str(e)}
 
 @app.post("/create-checkout-session")
@@ -297,8 +297,8 @@ def create_checkout_session(request: CheckoutRequest):
                 "quantity": 1,
             }],
             mode="subscription",
-            success_url="http://localhost:3000?upgrade=success",
-            cancel_url="http://localhost:3000?upgrade=cancelled",
+            success_url="https://futures-frontend.vercel.app?upgrade=success",
+            cancel_url="https://futures-frontend.vercel.app?upgrade=cancelled",
             customer_email=request.email,
             metadata={"user_id": request.user_id}
         )
@@ -336,9 +336,9 @@ async def stripe_webhook(request: Request):
                     "stripe_customer_id": customer_id,
                     "stripe_subscription_id": subscription_id
                 }).eq("id", user_id).execute()
-                print(f"✅ User {user_id} upgraded to Pro")
+                print(f"User {user_id} upgraded to Pro")
         except Exception as e:
-            print(f"❌ Error updating profile: {e}")
+            print(f"Error updating profile: {e}")
 
     if event["type"] in ["customer.subscription.deleted", "customer.subscription.paused"]:
         try:
@@ -348,9 +348,9 @@ async def stripe_webhook(request: Request):
                 "is_pro": False,
                 "stripe_subscription_id": None
             }).eq("stripe_customer_id", customer_id).execute()
-            print(f"✅ Customer {customer_id} downgraded to Free")
+            print(f"Customer {customer_id} downgraded to Free")
         except Exception as e:
-            print(f"❌ Error downgrading profile: {e}")
+            print(f"Error downgrading profile: {e}")
 
     return {"status": "ok"}
 
@@ -359,9 +359,7 @@ def ask_ai(request: PromptRequest):
     message = client.messages.create(
         model="claude-opus-4-6",
         max_tokens=1024,
-        messages=[
-            {"role": "user", "content": request.prompt}
-        ]
+        messages=[{"role": "user", "content": request.prompt}]
     )
     return {"response": message.content[0].text}
 
